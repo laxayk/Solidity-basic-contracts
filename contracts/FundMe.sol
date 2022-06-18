@@ -1,39 +1,46 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.8;
 
-import "@chainlink/contracts/src/v0.8/interfaces/AggregatorV3Interface.sol";
+import "./PriceConverter.sol";
 
 contract FundMe{
 
-    uint256 public minimumFund = 50 * 1e18;
+    using PriceConverter for uint256;
 
-    // constructor() payable{
-    //     val = msg.value;
-    // }
+    uint256 public minimumFund = 50 * 1e18;
+    address[] public fundersList;
+    mapping(address => uint256) public addreddToAmountFeed;
+
+    address public owner;
+
+    constructor(){
+        owner = msg.sender;
+    }
 
     function Fund() public payable{
-        bool condition = GetConversionRate(msg.value) >= minimumFund;
-        require(condition, "Didn't send enough");
+        require(msg.value.GetConversionRate() >= minimumFund, "Didn't send enough");
+        fundersList.push(msg.sender);
+        addreddToAmountFeed[msg.sender] += msg.value;
     }
 
-    function GetPrice() public view returns(uint256){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(0x8A753747A1Fa494EC906cE90E9f37563A8AF630e);
-         (,int256 price,,,) = priceFeed.latestRoundData();
-         return uint256(price * 1e10);
+    function Withdraw() public onlyOwner{
+        for(uint256 i =0; i<fundersList.length; i++){
+            addreddToAmountFeed[fundersList[i]] = 0;
+        }
+        fundersList = new address[](0);
+
+        // //Transfer
+        // payable(msg.sender).transfer(address(this).balance);
+        // //Send
+        // bool isSuccess = payable(msg.sender).send(address(this).balance);
+        // require(isSuccess, "send Failed");
+        //Call
+        (bool callSuccess,) = payable(msg.sender).call{value: address(this).balance}("");
+        require(callSuccess, "call Failed");
     }
 
-    function GetVersion() public view returns(uint256){
-        AggregatorV3Interface priceFeed = AggregatorV3Interface(0x8A753747A1Fa494EC906cE90E9f37563A8AF630e);
-        return priceFeed.version();
+    modifier onlyOwner{
+        require(msg.sender == owner, "You ain't the owner mf!");
+        _;
     }
-
-    function GetConversionRate(uint256 _etherAmount) public view returns(uint256){
-        uint256 ethPrice = GetPrice();
-        uint256 ethAmountInUsd = (ethPrice * _etherAmount)/1e18;
-        return ethAmountInUsd;
-    }
-
-    // function Withdraw(){
-
-    // }
 }
