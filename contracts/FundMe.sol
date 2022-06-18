@@ -3,22 +3,26 @@ pragma solidity ^0.8.8;
 
 import "./PriceConverter.sol";
 
+error NotAuthorized();
+
 contract FundMe{
 
     using PriceConverter for uint256;
 
-    uint256 public minimumFund = 50 * 1e18;
+//983,325
+//960,852
+    uint256 public constant  MINIMUM_FUND = 50 * 1e18;
     address[] public fundersList;
     mapping(address => uint256) public addreddToAmountFeed;
-
-    address public owner;
+//933,722
+    address public immutable i_owner;
 
     constructor(){
-        owner = msg.sender;
+        i_owner = msg.sender;
     }
 
     function Fund() public payable{
-        require(msg.value.GetConversionRate() >= minimumFund, "Didn't send enough");
+        require(msg.value.GetConversionRate() >= MINIMUM_FUND, "Didn't send enough");
         fundersList.push(msg.sender);
         addreddToAmountFeed[msg.sender] += msg.value;
     }
@@ -39,8 +43,17 @@ contract FundMe{
         require(callSuccess, "call Failed");
     }
 
+    receive() external payable{
+        Fund();
+    }
+
+    fallback() external payable{
+        Fund();
+    }
+
     modifier onlyOwner{
-        require(msg.sender == owner, "You ain't the owner mf!");
+        // require(msg.sender == i_owner, "You ain't the owner mf!");
+        if(msg.sender != i_owner) { revert NotAuthorized(); }
         _;
     }
 }
